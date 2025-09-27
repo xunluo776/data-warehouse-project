@@ -63,3 +63,41 @@ CAST(prd_start_dt AS DATE) AS prd_start_dt,
 DATEADD(DAY,-1, LEAD(prd_start_dt) OVER(PARTITION BY prd_key ORDER BY prd_start_dt)) AS prd_end_dt
 FROM bronze.crm_prd_info;
 
+-- Loading silver.crm_sales_details
+INSERT INTO silver.crm_sales_details (
+	sls_ord_num,
+	sls_prd_key,
+	sls_cust_id,
+	sls_order_dt,
+	sls_ship_dt,
+	sls_due_dt,
+	sls_sales,
+	sls_quantity,
+	sls_price
+)
+select
+sls_ord_num,
+sls_prd_key,
+sls_cust_id,
+case WHEN sls_order_dt = 0 or LEN(sls_order_dt) !=8 then NULL
+    else cast(cast(sls_order_dt as VARCHAR) as date) 
+END as sls_order_dt,
+case WHEN sls_ship_dt = 0 or LEN(sls_ship_dt) !=8 then NULL
+    else cast(cast(sls_ship_dt as VARCHAR) as date) 
+END as sls_ship_dt,
+case WHEN sls_due_dt = 0 or LEN(sls_due_dt) !=8 then NULL
+    else cast(cast(sls_due_dt as VARCHAR) as date) 
+END as sls_due_dt,
+case when sls_sales <= 0 or sls_sales is null or sls_sales != sls_quantity*ABS(sls_price)
+        then  sls_quantity * abs(sls_price)
+    else sls_sales
+end as sls_sales_new,
+sls_quantity,
+case when sls_price is null or sls_price<=0
+        then sls_sales/nullif(sls_quantity,0) 
+    else sls_price
+END as sls_price_new
+from bronze.crm_sales_details;
+
+
+
